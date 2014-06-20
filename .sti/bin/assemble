@@ -17,12 +17,12 @@ function rake_assets_precompile() {
   ! grep " execjs " Gemfile.lock >/dev/null && return
   ! bundle exec "rake -T" | grep "assets:precompile" >/dev/null && return
 
-  echo "---> Starting asset compilation."
+  echo "---> Starting asset compilation"
   bundle exec rake assets:precompile
 }
 
 if [ -e /tmp/artifacts/gems.tgz ]; then
-  echo "Restoring build artifacts"
+  echo "---> Restoring build artifacts"
   pushd ${HOME} >/dev/null
   tar zxf /tmp/artifacts/gems.tgz
   popd >/dev/null
@@ -30,13 +30,24 @@ fi
 
 app_runtime_dir="${HOME}/src"
 app_src_dir="/tmp/src"
+checksum_file="${app_runtime_dir}/${APP_ROOT}/.checksum"
 
 echo "---> Installing application source"
 mkdir -p ${app_runtime_dir}
+
+if [ -e "${checksum_file}" ]; then
+  mv ${checksum_file} /tmp/.previous_checksum
+fi
+
 cp -Rf ${app_src_dir}/* ${app_runtime_dir}/
 
 pushd "$app_runtime_dir/${APP_ROOT}" >/dev/null
 echo "---> Building your Ruby application from source"
+
+gemfile_modified="yes"
+if [ -f /tmp/.previous_checksum ]; then
+  (sha256sum --status --check /tmp/.previous_checksum) && gemfile_modified="no"
+fi
 
 if [ -f Gemfile ]; then
   ADDTL_BUNDLE_ARGS=""
@@ -51,15 +62,24 @@ if [ -f Gemfile ]; then
   else
     BUNDLE_WITHOUT=${BUNDLE_WITHOUT:-"development:test"}
   fi
-  # We can't use 'exec' here because it will exit from the script after the
-  # bundle install command finish. Thus the bundle install cannot receive SIGINT
-  # from console (ctrl+c)
-  #
-  echo "---> Running 'bundle install ${ADDTL_BUNDLE_ARGS}'"
-  bundle install --path ${HOME}/bundle ${ADDTL_BUNDLE_ARGS}
 
-  echo "---> Cleaning up unused ruby gems"
-  bundle clean -V
+  if [ "${gemfile_modified}" == "yes" ]; then
+
+    # We can't use 'exec' here because it will exit from the script after the
+    # bundle install command finish. Thus the bundle install cannot receive SIGINT
+    # from console (ctrl+c)
+    #
+    echo "---> Running 'bundle install ${ADDTL_BUNDLE_ARGS}'"
+    bundle install --path ${HOME}/bundle ${ADDTL_BUNDLE_ARGS}
+
+    echo "---> Cleaning up unused ruby gems"
+    bundle clean -V
+  else
+    echo "---> The Gemfile.lock was not modified, skipping bundle install"
+  fi
+
+  echo "---> Updating Gemfile.lock checksum"
+  sha256sum Gemfile.lock > .checksum
 fi
 
 rake_assets_precompile

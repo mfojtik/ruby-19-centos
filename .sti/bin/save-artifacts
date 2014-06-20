@@ -2,10 +2,13 @@
 
 echo "---> Saving build-artifacts"
 
+artifacts=(
+  bundle/ruby
+  src/${APP_ROOT}/Gemfile.lock
+  src/${APP_ROOT}/.checksum
+)
+
 pushd ${HOME} >/dev/null
-
-if [ -d ./bundle/ruby -a -f ./src/${APP_ROOT}/Gemfile.lock ]; then
-  tar zcf /tmp/artifacts/gems.tgz bundle/ruby src/${APP_ROOT}/Gemfile.lock
-fi
-
+artifacts=($(for a in ${artifacts[@]}; do [ -e "$a" ] && echo $a; done ))
+tar zcf /tmp/artifacts/gems.tgz ${artifacts[@]}
 popd >/dev/null

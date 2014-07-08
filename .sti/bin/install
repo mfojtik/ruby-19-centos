@@ -1,7 +1,8 @@
 #!/bin/bash
 #
 # The 'install' script is called from the 'assemble' script in order to install
-# the source files into their runtime directory.
+# the source files into their runtime directory. It handles installation from
+# the bind-mounted directory OR from the archive streamed on STDIN.
 #
 # It also might be executed when 'hot-deplying' the code without executing the
 # full build. In that case the install reload the web server after the updated
@@ -11,12 +12,18 @@
 app_runtime_dir="${HOME}/src"
 app_src_dir="/tmp/src"
 
-echo "---> Installing application source"
-mkdir -p ${app_runtime_dir}
-cp -Rf ${app_src_dir}/* ${app_runtime_dir}/
+if [ -p /dev/stdin ]; then
+  echo "---> Installing application sources from STDIN"
+  pushd ${app_runtime_dir}/ >/dev/null
+  tar -xf -
+  popd >/dev/null
+else
+  echo "---> Installing application sources from ${app_src_dir}"
+  mkdir -p ${app_runtime_dir}
+  cp -Rf ${app_src_dir}/* ${app_runtime_dir}/
+fi
 
-
-# Reload the Puma if the PID file exists and is not empty
+# Reload the Puma if the PID file exists and it is not empty.
 #
 if [ -f "${HOME}/run/puma.pid" ]; then
   puma_pid=`cat ${HOME}/run/puma.pid`
@@ -25,3 +32,5 @@ if [ -f "${HOME}/run/puma.pid" ]; then
     kill -S SIGUSR1 $puma_pid
   fi
 fi
+
+# TODO: Handle reload for other web servers (webrick/thin/unicorn?)

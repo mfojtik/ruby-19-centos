@@ -31,9 +31,9 @@ fi
 app_runtime_dir="${HOME}/src"
 app_src_dir="/tmp/src"
 
-echo "---> Installing application source"
-mkdir -p ${app_runtime_dir}
-cp -Rf ${app_src_dir}/* ${app_runtime_dir}/
+# Install the sources
+#
+/tmp/sti/install
 
 pushd "$app_runtime_dir/${APP_ROOT}" >/dev/null
 echo "---> Building your Ruby application from source"

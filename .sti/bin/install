@@ -1,0 +1,27 @@
+#!/bin/bash
+#
+# The 'install' script is called from the 'assemble' script in order to install
+# the source files into their runtime directory.
+#
+# It also might be executed when 'hot-deplying' the code without executing the
+# full build. In that case the install reload the web server after the updated
+# sources are copied into the target directory
+#
+
+app_runtime_dir="${HOME}/src"
+app_src_dir="/tmp/src"
+
+echo "---> Installing application source"
+mkdir -p ${app_runtime_dir}
+cp -Rf ${app_src_dir}/* ${app_runtime_dir}/
+
+
+# Reload the Puma if the PID file exists and is not empty
+#
+if [ -f "${HOME}/run/puma.pid" ]; then
+  puma_pid=`cat ${HOME}/run/puma.pid`
+  if [ -n "${puma_pid}" ]; then
+    echo "---> Gracefully restarting the Puma server"
+    kill -S SIGUSR1 $puma_pid
+  fi
+fi
